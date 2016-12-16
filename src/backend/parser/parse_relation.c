@@ -2712,7 +2712,7 @@ warnAutoRange(ParseState *pstate, RangeVar *relation, int location)
 void
 ExecCheckRTPerms(List *rangeTable)
 {
-  if (enable_ranger)
+  if (enable_ranger && !fallBackToNativeChecks(ACL_KIND_CLASS,rangeTable,GetUserId()))
   {
     if(rangeTable!=NULL)
       ExecCheckRTPermsWithRanger(rangeTable);

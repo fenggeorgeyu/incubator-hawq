@@ -59,33 +59,28 @@ RangerACLResult parse_ranger_response(char* buffer)
     if (strlen(buffer) == 0)
         return RANGERCHECK_UNKNOWN;
 
-    elog(LOG, "RRRRRRRRRRread from Ranger Restful API: %s", buffer);
+    elog(LOG, "read from Ranger Restful API: %s", buffer);
 
     struct json_object *response = json_tokener_parse(buffer);
     struct json_object *accessObj = json_object_object_get(response, "access");
 
-    //json_object * jobj = json_object_object_get(jobj, key);
     int arraylen = json_object_array_length(accessObj);
     elog(LOG, "Array Length: %dn",arraylen);
 
     json_object * jvalue;
+    json_object * jallow;
+    json_bool result;
+    // here should return which table's acl check failed in future.
     for (int i=0; i< arraylen; i++){
       jvalue = json_object_array_get_idx(accessObj, i);
-      //elog(LOG,"value[%d]: %sn",i, json_object_get_boolean(jvalue));
-    }
-    json_object * jallow = json_object_object_get(jvalue, "allowed");
-    json_bool result = json_object_get_boolean(jallow);
-
-    //char* szResult = json_object_get_boolean(result);
-    //elog(LOG, "parse Ranger response, result:%s.", szResult);
-    elog(LOG, "parFFFFse Ranger response, result:%d.", result);
-    //if (strcmp(szResult, "true") == 0)
-    if(result == 1)
-    {
-        return RANGERCHECK_OK;
-    } else {
+      jallow = json_object_object_get(jvalue, "allowed");
+      result = json_object_get_boolean(jallow);
+      if(result != 1){
         return RANGERCHECK_NO_PRIV;
+      }
     }
+    return RANGERCHECK_OK;
+
 }
 
 /*
@@ -287,7 +282,7 @@ json_object* create_ranger_request_json(char* user, AclObjectKind kind, char* ob
     elog(LOG, "build json for ranger request, user:%s, kind:%s, object:%s",
               user, AclObjectKindStr[kind], object);
     json_object *jrequest = json_object_new_object();
-    json_object *juser = json_object_new_string("hubert");//user);
+    json_object *juser = json_object_new_string(user);
 
     json_object *jaccess = json_object_new_array();
     json_object *jelement = json_object_new_object();

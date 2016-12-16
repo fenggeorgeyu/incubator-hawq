@@ -2303,11 +2303,11 @@ char *getClassNameFromOid(Oid object_oid)
   if (database_name == NULL)
        elog(ERROR, "oid [%u] not found current database", object_oid);
 
-  appendStringInfo(&tname, database_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, schema_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, rel_name);
+  appendStringInfo(&tname, "%s", database_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", schema_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", rel_name);
   pfree(rel_name);
   pfree(schema_name);
   pfree(database_name);
@@ -2352,11 +2352,11 @@ char *getSequenceNameFromOid(Oid object_oid)
   if (database_name == NULL)
       elog(ERROR, "oid [%u] not found current database", object_oid);
 
-  appendStringInfo(&tname, database_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, schema_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, seq_name);
+  appendStringInfo(&tname, "%s", database_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", schema_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", seq_name);
   pfree(seq_name);
   pfree(schema_name);
   pfree(database_name);
@@ -2413,11 +2413,11 @@ char *getProcNameFromOid(Oid object_oid)
   if (database_name == NULL)
       elog(ERROR, "oid [%u] not found current database", object_oid);
 
-  appendStringInfo(&tname, database_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, schema_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, proc_name);
+  appendStringInfo(&tname, "%s", database_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", schema_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", proc_name);
   pfree(proc_name);
   pfree(schema_name);
   pfree(database_name);
@@ -2470,9 +2470,9 @@ char *getLanguageNameFromOid(Oid object_oid)
   if (database_name == NULL)
       elog(ERROR, "oid [%u] not found current database", object_oid);
 
-  appendStringInfo(&tname, database_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, lang_name);
+  appendStringInfo(&tname, "%s", database_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", lang_name);
 
   pfree(lang_name);
   pfree(database_name);
@@ -2499,9 +2499,9 @@ char *getNamespaceNameFromOid(Oid object_oid)
   if (database_name == NULL)
       elog(ERROR, "oid [%u] not found current database", object_oid);
 
-  appendStringInfo(&tname, database_name);
-  appendStringInfo(&tname, ".");
-  appendStringInfo(&tname, schema_name);
+  appendStringInfo(&tname, "%s", database_name);
+  appendStringInfoChar(&tname, '.');
+  appendStringInfo(&tname, "%s", schema_name);
 
   pfree(schema_name);
   pfree(database_name);
@@ -2678,6 +2678,27 @@ bool fallBackToNativeCheck(AclObjectKind objkind, Oid obj_oid, Oid roleid)
   }
   return false;
 }
+
+bool fallBackToNativeChecks(AclObjectKind objkind, List* table_list, Oid roleid)
+{
+  //for heap table, we fall back to native check.
+  if(objkind == ACL_KIND_CLASS)
+  {
+    ListCell   *l;
+    foreach(l, table_list)
+    {
+      RangeTblEntry *rte=(RangeTblEntry *) lfirst(l);
+      char relstorage = get_rel_relstorage(rte->relid);
+      if(relstorage == 'h')
+      {
+        return true;
+      }
+    }
+
+  }
+  return false;
+}
+
 /*
  * return: List of RangerPrivilegeResults 
  * arg_list: List of RangerPrivilegeArgs
@@ -2737,6 +2758,9 @@ List *pg_rangercheck_batch(List *arg_list)
     requestargs = NULL;
   }
 
+  if(ret != RANGERCHECK_OK){
+    elog(ERROR, "ACL check failed\n");
+  }
   elog(LOG, "oids%d\n", arg_list->length);
   return aclresults;
 }
@@ -2765,7 +2789,7 @@ pg_rangercheck(AclObjectKind objkind, Oid object_oid, Oid roleid,
     list_free_deep(actions);
     actions = NIL;
   }
-  return ACLCHECK_OK;
+  return ret;
 }
 
 /*
